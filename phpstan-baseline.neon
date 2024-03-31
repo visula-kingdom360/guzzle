@@ -41,6 +41,11 @@ parameters:
 			path: src/Exception/RequestException.php
 
 		-
+			message: "#^Cannot access offset 'features' on array\\|false\\.$#"
+			count: 3
+			path: src/Handler/CurlFactory.php
+
+		-
 			message: "#^Cannot access offset 'version' on array\\|false\\.$#"
 			count: 1
 			path: src/Handler/CurlFactory.php
