@@ -11,6 +11,7 @@ use GuzzleHttp\Psr7\LazyOpenStream;
 use GuzzleHttp\TransferStats;
 use GuzzleHttp\Utils;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\UriInterface;
 
 /**
  * Creates curl resources from a request
@@ -251,15 +252,22 @@ class CurlFactory implements CurlFactoryInterface
             );
         }
 
+        $uri = $easy->request->getUri();
+
+        $sanitizedError = self::sanitizeCurlError($ctx['error'] ?? '', $uri);
+
         $message = \sprintf(
             'cURL error %s: %s (%s)',
             $ctx['errno'],
-            $ctx['error'],
+            $sanitizedError,
             'see https://curl.haxx.se/libcurl/c/libcurl-errors.html'
         );
-        $uriString = (string) $easy->request->getUri();
-        if ($uriString !== '' && false === \strpos($ctx['error'], $uriString)) {
-            $message .= \sprintf(' for %s', $uriString);
+
+        if ('' !== $sanitizedError) {
+            $redactedUriString = \GuzzleHttp\Psr7\Utils::redactUserInfo($uri)->__toString();
+            if ($redactedUriString !== '' && false === \strpos($sanitizedError, $redactedUriString)) {
+                $message .= \sprintf(' for %s', $redactedUriString);
+            }
         }
 
         // Create a connection exception if it was a specific error code.
@@ -268,6 +276,24 @@ class CurlFactory implements CurlFactoryInterface
             : new RequestException($message, $easy->request, $easy->response, null, $ctx);
 
         return P\Create::rejectionFor($error);
+    }
+
+    private static function sanitizeCurlError(string $error, UriInterface $uri): string
+    {
+        if ('' === $error) {
+            return $error;
+        }
+
+        $baseUri = $uri->withQuery('')->withFragment('');
+        $baseUriString = $baseUri->__toString();
+
+        if ('' === $baseUriString) {
+            return $error;
+        }
+
+        $redactedUriString = \GuzzleHttp\Psr7\Utils::redactUserInfo($baseUri)->__toString();
+
+        return str_replace($baseUriString, $redactedUriString, $error);
     }
 
     /**
