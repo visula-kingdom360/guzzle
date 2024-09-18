@@ -43,6 +43,7 @@ class CurlFactory implements CurlFactoryInterface
     public function __construct(int $maxHandles)
     {
         $this->maxHandles = $maxHandles;
+        $this->handles = [];
     }
 
     public function create(RequestInterface $request, array $options): EasyHandle
@@ -124,7 +125,7 @@ class CurlFactory implements CurlFactoryInterface
         $resource = $easy->handle;
         unset($easy->handle);
 
-        if (\count($this->handles) >= $this->maxHandles) {
+         if (is_array($this->handles) && count($this->handles) >= $this->maxHandles) {
             \curl_close($resource);
         } else {
             // Remove all callback functions as they can hold onto references
